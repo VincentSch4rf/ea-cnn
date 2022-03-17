@@ -1,5 +1,7 @@
 import configparser
 import os
+import re
+
 import numpy as np
 from subprocess import Popen, PIPE
 from genetic.population import Population, Individual, DenseUnit, ResUnit, PoolUnit
@@ -234,39 +236,29 @@ class GPUTools(object):
                 break
             else:
                 gpu_info_list.append(lines[line_no][1:-1].strip())
-        #parse the information
-        print(gpu_info_list)
-        if len(gpu_info_list) == 1:
-            if gpu_info_list[0].startswith('No'): #GPU outputs: No running processes found
-                return 10000 # indicating all the gpus are available
+        gpus = []
+        for line_no in range(8, len(lines)):
+            if lines[line_no].startswith('|==='):
+                break
             else:
-                info_array = gpu_info_list[0].split(' ', 1)
-                if info_array[0] == '0':
-                    Log.info('GPU_QUERY-GPU#1 and # are available, choose GPU#1')
-                    return 1
-                elif info_array[0] == '1':
-                    Log.info('GPU_QUERY-GPU#0 and #2 is available, choose GPU#2')
-                    return 2
-                else:
-                    Log.info('GPU_QUERY-GPU#0 and #1 is available, choose GPU#0')
-                    return 0
+                m = re.match(r"\|[ \t]+(\d)[ \t]+", lines[line_no])
+                if m:
+                    gpuid = int(m.group(1))
+                    gpus.append(gpuid)
+        #parse the information
+        # print(gpu_info_list)
+        if gpu_info_list[0].startswith('No'): #GPU outputs: No running processes found
+            return 10000 # indicating all the gpus are available
 
-        elif len(gpu_info_list) == 2:
-            info_array1 = gpu_info_list[0].split(' ', 1)
-            info_array2 = gpu_info_list[1].split(' ', 1)
-            gpu_use_list = [info_array1[0], info_array2[0]]
-            if '0' not in gpu_use_list:
-                Log.info('GPU_QUERY-GPU#0 is available')
-                return 0
-            if '1' not in gpu_use_list:
-                Log.info('GPU_QUERY-GPU#1 is available')
-                return 1
-            if '2' not in gpu_use_list:
-                Log.info('GPU_QUERY-GPU#2 is available')
-                return 2
-        else:
-            Log.info('GPU_QUERY-No available GPU')
-            return None
+        gpu_use_list = []
+        for i in range(len(gpu_info_list)):
+            gpu_use_list.extend(gpu_info_list[i].split(' ', 1))
+        for gpu in gpus:
+            if str(gpu) not in gpu_use_list:
+                Log.info(f'GPU_QUERY-GPU#{gpu} is available')
+                return gpu
+        Log.info('GPU_QUERY-No available GPU')
+        return None
 
     @classmethod
     def all_gpu_available(cls):
@@ -296,7 +288,7 @@ class Utils(object):
         return cls._lock
     @classmethod
     def load_cache_data(cls):
-        file_name = './populations/cache.txt'
+        file_name = 'populations_done/cache.txt'
         _map = {}
         if os.path.exists(file_name):
             f = open(file_name, 'r')
@@ -314,7 +306,7 @@ class Utils(object):
             _acc = indi.acc
             if _key not in _map:
                 Log.info('Add record into cache, id:%s, acc:%.5f'%(_key, _acc))
-                f = open('./populations/cache.txt', 'a+')
+                f = open('populations_done/cache.txt', 'a+')
                 _str = '%s;%.5f;%s\n'%(_key, _acc, _str)
                 f.write(_str)
                 f.close()
@@ -342,7 +334,7 @@ class Utils(object):
     @classmethod
     def get_newest_file_based_on_prefix(cls, prefix):
         id_list = []
-        for _, _, file_names in os.walk('./populations'):
+        for _, _, file_names in os.walk('populations_done'):
             for file_name in file_names:
                 if file_name.startswith(prefix):
                     id_list.append(int(file_name[6:8]))

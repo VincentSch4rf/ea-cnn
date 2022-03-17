@@ -116,7 +116,7 @@ class EvoCNNModel(nn.Module):
 
 class TrainModel(object):
     def __init__(self):
-        trainloader, validate_loader = data_loader.get_train_valid_loader('/home/yanan/train_data', batch_size=128, augment=True, valid_size=0.1, shuffle=True, random_seed=2312390, show_sample=False, num_workers=1, pin_memory=True)
+        trainloader, validate_loader = data_loader.get_train_valid_loader('./train_data', batch_size=128, augment=True, valid_size=0.1, shuffle=True, random_seed=2312390, show_sample=False, num_workers=1, pin_memory=True)
         #testloader = data_loader.get_test_loader('/home/yanan/train_data', batch_size=128, shuffle=False, num_workers=1, pin_memory=True)
         net = EvoCNNModel()
         cudnn.benchmark = True
@@ -163,7 +163,7 @@ class TrainModel(object):
             loss = self.criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            running_loss += loss.data[0]*labels.size(0)
+            running_loss += loss.item()*labels.size(0)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels.data).sum()
@@ -179,7 +179,7 @@ class TrainModel(object):
             inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
             outputs = self.net(inputs)
             loss = self.criterion(outputs, labels)
-            test_loss += loss.data[0]*labels.size(0)
+            test_loss += loss.item()*labels.size(0)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels.data).sum()
@@ -199,6 +199,7 @@ class TrainModel(object):
 
 class RunModel(object):
     def do_work(self, gpu_id, file_id):
+        print(gpu_id)
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id
         best_acc = 0.0
         try:
